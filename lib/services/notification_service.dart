@@ -171,9 +171,11 @@ class NotificationService {
         sound: RawResourceAndroidNotificationSound(_exampleSoundName),
       );
     }
+    // Default: use the example sound
     return const _SoundSettings(
       channelId: _defaultChannelId,
       playSound: true,
+      sound: RawResourceAndroidNotificationSound(_exampleSoundName),
     );
   }
 
