@@ -1,0 +1,309 @@
+Project Overview — Interval Timer App (Mobile, Local-First)
+Project Summary
+
+Eine lokale, minimalistische Intervall-Timer-App für Android, die Nutzer regelmäßig per Sound, Vibration und Notification erinnert (z. B. Trinken, Pausen, Fokus).
+Die App ist accountlos, offline, extrem simpel, und folgt einer cleanen, Teenage-Engineering-inspirierten Designsprache.
+
+Kernwert: Zuverlässige, konfigurierbare Erinnerungen mit minimalem UI-Overhead.
+
+Goals & Non-Goals
+Goals
+
+Zuverlässige Intervall-Erinnerungen im Background + Lockscreen
+
+Extrem schnelle Bedienung mit einer Hand
+
+Klare visuelle Trennung der Timer (Farben)
+
+Vollständig lokal, kein Account, kein Sync
+
+Non-Goals
+
+❌ Kein Cloud-Sync
+
+❌ Kein iOS (vorerst)
+
+❌ Keine Analytics / Telemetrie
+
+❌ Keine Accounts / Profile
+
+❌ Keine komplexen Wizards oder Beispiel-Timer
+
+Target Users & Roles
+
+Rolle: Single User (lokal)
+
+Zielgruppe (breit, bewusst unspezifisch):
+
+Menschen, die regelmäßige Erinnerungen brauchen
+
+Fokus- / Routine- / Health-Use-Cases
+
+Technikaffine Nutzer, die keinen Overhead wollen
+
+Core Use Cases / User Stories
+
+Als User öffne ich die App und sehe alle Timer in einer Liste
+
+Ich kann mindestens 8 Timer gleichzeitig sehen
+
+Ich erstelle einen neuen Timer über einen zentralen Plus-Button
+
+Ich konfiguriere Intervall, Name, Farbe, Sound, Vibration
+
+Ich starte/stoppe jeden Timer direkt in der Liste
+
+Ein Timer erinnert mich alle X Minuten zuverlässig
+
+Die Erinnerung funktioniert auch bei Screen off / App im Hintergrund
+
+Ich kann Timer per Swipe nach links löschen
+
+Ich kann Ruhezeiten definieren (z. B. nachts)
+
+Ich kann eigene Audio-Dateien auswählen
+
+Ich kann einen globalen Mute-Button aktivieren
+
+Die App startet im Dark Mode
+
+Ich kann die Sprache auf DE / EN umstellen
+
+Feature Set
+MVP (Pflicht)
+
+Android App (APK, Sideload)
+
+Flutter (Dart)
+
+Hauptscreen mit Timer-Liste
+
+Plus-Button (zentral unten)
+
+Bottom-Sheet-Timer-Editor (untere Hälfte)
+
+Timer:
+
+Name
+
+Intervall (Minuten / Stunden)
+
+Endlos oder begrenzte Dauer
+
+Farbe
+
+Sound (Preset + File Picker)
+
+Lautstärke pro Timer
+
+Vibration (on/off)
+
+Aktiv/Inaktiv
+
+Lokale Notifications (Sound + Vibration)
+
+Hintergrundfähig (OS-konform)
+
+Swipe-to-Delete
+
+Dark Mode (Default)
+
+DE / EN
+
+Nice-to-Have
+
+Individuelles Vibrationsmuster
+
+Ruhezeiten (Zeitfenster)
+
+Globaler Mute-Button
+
+Light Mode Toggle
+
+Reorder der Timer (Drag & Drop)
+
+Future Ideas
+
+iOS Port
+
+Export/Import
+
+Presets
+
+Wearable-Support
+
+Information Architecture
+Screens
+
+Main Screen (einziger Screen)
+
+Timer-Liste
+
+Start/Stop pro Timer
+
+Plus-Button (FAB)
+
+Global Mute (optional oben)
+
+Bottom Sheet: Timer Editor
+
+Name
+
+Intervall
+
+Dauer / Endlos
+
+Sound Picker
+
+File Picker
+
+Farbe
+
+Vibration
+
+Ruhezeiten
+
+Save / Cancel
+
+Settings (optional minimal)
+
+Sprache
+
+Light/Dark Mode
+
+High-Level Architecture
+Tech Stack (empfohlen)
+
+Flutter (Dart)
+
+Android SDK
+
+Gradle Build
+
+Local Notifications Plugin
+
+File Picker Plugin
+
+Warum Flutter?
+
+Saubere, konsistente UI
+
+Sehr gutes Bottom-Sheet-Handling
+
+CLI-fähig (WSL, Git, CI)
+
+Android-First problemlos
+
+Components / Services
+Frontend
+
+Flutter Widgets
+
+State Management: simpel (z. B. ChangeNotifier)
+
+Background / System
+
+Android Local Notifications
+
+OS-konforme Reminder (kein Hacky Background Service)
+
+Storage
+
+Lokal (Key-Value / JSON)
+
+Keine DB nötig im MVP
+
+Data Model Overview
+
+Timer
+
+id
+
+name
+
+intervalMinutes
+
+durationMinutes? (optional)
+
+isEndless
+
+color
+
+soundPath
+
+volume
+
+vibrationEnabled
+
+vibrationPattern?
+
+quietHours?
+
+isActive
+
+API / Interface Overview
+
+(intern, kein externes API)
+
+TimerService
+
+createTimer()
+
+updateTimer()
+
+deleteTimer()
+
+startTimer()
+
+stopTimer()
+
+NotificationService
+
+scheduleNotification()
+
+cancelNotification()
+
+Milestones
+Phase 0 — Setup
+
+Flutter Project
+
+Git Repo
+
+Android Build via CLI
+
+APK Sideload
+
+Phase 1 — MVP
+
+Main Screen
+
+Timer CRUD
+
+Notifications
+
+Background Handling
+
+Phase 2 — Hardening
+
+Edge Cases (Screen off, Reboot)
+
+UI Polish
+
+Performance Cleanup
+
+Phase 3 — Enhancements
+
+Ruhezeiten
+
+Global Mute
+
+Light Mode
+
+Risks & Open Questions
+
+Android OEM Battery Optimizations (Doze)
+
+Notification Reliability bei aggressiven ROMs
+
+File Access Permissions (Scoped Storage)
