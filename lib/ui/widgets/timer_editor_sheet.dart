@@ -346,13 +346,20 @@ class _TimerEditorSheetState extends State<TimerEditorSheet> {
   }
 
   Source? _resolvePreviewSource() {
-    if (_soundDropdownValue() == 'custom') {
+    final dropdown = _soundDropdownValue();
+    if (dropdown == 'custom') {
       if (_soundPath == null || _soundPath!.isEmpty) {
         return null;
       }
       return DeviceFileSource(_soundPath!);
     }
-    return AssetSource('assets/sounds/interval_timer_example.ogg');
+    if (dropdown == 'example' || dropdown == 'default') {
+      // Both default and example use the example sound for preview
+      // (default will use system sound in actual notifications)
+      return AssetSource('sounds/interval_timer_example.ogg');
+    }
+    // Silent
+    return null;
   }
 
   Future<void> _pickSoundFile() async {

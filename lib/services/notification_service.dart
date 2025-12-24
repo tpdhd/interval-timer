@@ -12,9 +12,9 @@ import '../models/timer_model.dart';
 class NotificationService {
   final FlutterLocalNotificationsPlugin _plugin = FlutterLocalNotificationsPlugin();
 
-  static const _defaultChannelId = 'interval_timer_reminders_v2';
-  static const _exampleChannelId = 'interval_timer_reminders_example_v2';
-  static const _silentChannelId = 'interval_timer_reminders_silent_v2';
+  static const _defaultChannelId = 'interval_timer_reminders_v3';
+  static const _exampleChannelId = 'interval_timer_reminders_example_v3';
+  static const _silentChannelId = 'interval_timer_reminders_silent_v3';
   static const _channelName = 'Interval Reminders';
   static const _channelDescription = 'Interval timer reminders';
   static const _exampleSoundName = 'interval_timer_example';
@@ -22,6 +22,9 @@ class NotificationService {
     'interval_timer_reminders',
     'interval_timer_reminders_example',
     'interval_timer_reminders_silent',
+    'interval_timer_reminders_v2',
+    'interval_timer_reminders_example_v2',
+    'interval_timer_reminders_silent_v2',
   ];
 
   Future<void> initialize() async {
@@ -33,26 +36,30 @@ class NotificationService {
     const settings = InitializationSettings(android: androidSettings);
     await _plugin.initialize(settings);
 
-    final defaultChannel = const AndroidNotificationChannel(
+    // Default channel uses system default notification sound
+    const defaultChannel = AndroidNotificationChannel(
       _defaultChannelId,
       _channelName,
       description: _channelDescription,
       importance: Importance.max,
       playSound: true,
-      sound: RawResourceAndroidNotificationSound(_exampleSoundName),
+      enableVibration: true,
     );
+    // Example channel uses custom sound
     final exampleChannel = const AndroidNotificationChannel(
       _exampleChannelId,
-      _channelName,
-      description: _channelDescription,
+      'Interval Reminders (Example Sound)',
+      description: 'Interval timer reminders with example sound',
       importance: Importance.max,
       playSound: true,
+      enableVibration: true,
       sound: RawResourceAndroidNotificationSound(_exampleSoundName),
     );
+    // Silent channel
     const silentChannel = AndroidNotificationChannel(
       _silentChannelId,
-      _channelName,
-      description: _channelDescription,
+      'Interval Reminders (Silent)',
+      description: 'Silent interval timer reminders',
       importance: Importance.max,
       playSound: false,
     );
@@ -171,11 +178,10 @@ class NotificationService {
         sound: RawResourceAndroidNotificationSound(_exampleSoundName),
       );
     }
-    // Default: use the example sound
+    // Default: use system default notification sound (no sound specified)
     return const _SoundSettings(
       channelId: _defaultChannelId,
       playSound: true,
-      sound: RawResourceAndroidNotificationSound(_exampleSoundName),
     );
   }
 
