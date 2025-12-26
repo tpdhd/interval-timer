@@ -19,10 +19,21 @@ class MainScreen extends StatelessWidget {
         actions: [
           Consumer<TimerStore>(
             builder: (context, store, _) {
-              return IconButton(
-                tooltip: strings.text('globalMute'),
-                icon: Icon(store.globalMute ? Icons.notifications_off : Icons.notifications),
-                onPressed: store.toggleGlobalMute,
+              return Padding(
+                padding: const EdgeInsets.only(right: 4),
+                child: IconButton(
+                  tooltip: strings.text('globalMute'),
+                  style: store.globalMute
+                      ? IconButton.styleFrom(
+                          backgroundColor: Colors.orange.shade600,
+                          foregroundColor: Colors.white,
+                        )
+                      : null,
+                  icon: Icon(
+                    store.globalMute ? Icons.notifications_off : Icons.notifications,
+                  ),
+                  onPressed: store.toggleGlobalMute,
+                ),
               );
             },
           ),
@@ -68,6 +79,9 @@ class MainScreen extends StatelessWidget {
                   child: Icon(Icons.delete, color: Colors.white.withOpacity(0.9)),
                 ),
                 direction: DismissDirection.endToStart,
+                dismissThresholds: const {DismissDirection.endToStart: 0.3},
+                movementDuration: const Duration(milliseconds: 200),
+                resizeDuration: const Duration(milliseconds: 150),
                 onDismissed: (_) => store.deleteTimer(timer.id),
                 child: TimerCard(
                   timer: timer,

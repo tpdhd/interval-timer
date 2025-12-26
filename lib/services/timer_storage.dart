@@ -7,6 +7,9 @@ class TimerStorage {
   static const _muteKey = 'globalMute';
   static const _themeKey = 'themeMode';
   static const _localeKey = 'localeCode';
+  static const _customSound01Key = 'customSound01';
+  static const _customSound02Key = 'customSound02';
+  static const _customSound03Key = 'customSound03';
 
   Future<List<TimerModel>> loadTimers() async {
     final prefs = await SharedPreferences.getInstance();
@@ -50,5 +53,46 @@ class TimerStorage {
   Future<void> saveLocaleCode(String value) async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString(_localeKey, value);
+  }
+
+  Future<String?> loadCustomSound(String soundId) async {
+    final prefs = await SharedPreferences.getInstance();
+    switch (soundId) {
+      case 'sound_01':
+        return prefs.getString(_customSound01Key);
+      case 'sound_02':
+        return prefs.getString(_customSound02Key);
+      case 'sound_03':
+        return prefs.getString(_customSound03Key);
+      default:
+        return null;
+    }
+  }
+
+  Future<void> saveCustomSound(String soundId, String? filePath) async {
+    final prefs = await SharedPreferences.getInstance();
+    switch (soundId) {
+      case 'sound_01':
+        if (filePath == null) {
+          await prefs.remove(_customSound01Key);
+        } else {
+          await prefs.setString(_customSound01Key, filePath);
+        }
+        break;
+      case 'sound_02':
+        if (filePath == null) {
+          await prefs.remove(_customSound02Key);
+        } else {
+          await prefs.setString(_customSound02Key, filePath);
+        }
+        break;
+      case 'sound_03':
+        if (filePath == null) {
+          await prefs.remove(_customSound03Key);
+        } else {
+          await prefs.setString(_customSound03Key, filePath);
+        }
+        break;
+    }
   }
 }

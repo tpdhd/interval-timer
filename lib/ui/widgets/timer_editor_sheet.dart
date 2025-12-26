@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 
 import '../../l10n/app_localizations.dart';
 import '../../models/timer_model.dart';
+import '../../services/timer_storage.dart';
 
 class TimerEditorSheet extends StatefulWidget {
   const TimerEditorSheet({super.key, required this.timer, required this.isEditing});
@@ -77,9 +78,11 @@ class _TimerEditorSheetState extends State<TimerEditorSheet> {
   late int _colorValue;
   late bool _vibrationEnabled;
   late double _volume;
-  String? _soundPath;
+  late String _soundSlot;
+  String? _customSoundPath;
   final AudioPlayer _audioPlayer = AudioPlayer();
   final _random = Random();
+  final _storage = TimerStorage();
 
   final _colors = <int>[
     Colors.cyan.value,
@@ -101,9 +104,23 @@ class _TimerEditorSheetState extends State<TimerEditorSheet> {
     );
     _intervalController.addListener(_handleIntervalHint);
     _colorValue = timer.colorValue;
-    _soundPath = timer.soundPath;
+    _soundSlot = timer.soundPath ?? 'sound_01';
+    // Ensure soundSlot is one of the valid options
+    if (_soundSlot != 'sound_01' && _soundSlot != 'sound_02' && _soundSlot != 'sound_03') {
+      _soundSlot = 'sound_01';
+    }
     _volume = timer.volume;
     _vibrationEnabled = timer.vibrationEnabled;
+    _loadCustomSound();
+  }
+
+  Future<void> _loadCustomSound() async {
+    final path = await _storage.loadCustomSound(_soundSlot);
+    if (mounted) {
+      setState(() {
+        _customSoundPath = path;
+      });
+    }
   }
 
   @override
@@ -200,72 +217,89 @@ class _TimerEditorSheetState extends State<TimerEditorSheet> {
                 ),
                 const SizedBox(height: 16),
                 Text(strings.text('sound')),
+                const SizedBox(height: 4),
+                Text(
+                  'Built-in notification sounds. Custom files for preview only.',
+                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                        color: Theme.of(context).colorScheme.onSurface.withOpacity(0.6),
+                      ),
+                ),
                 const SizedBox(height: 8),
                 Row(
                   children: [
                     Expanded(
                       child: DropdownButton<String>(
-                        value: _soundDropdownValue(),
-                        items: [
-                          DropdownMenuItem(
-                              value: 'default', child: Text(strings.text('defaultSound'))),
-                          DropdownMenuItem(
-                              value: 'example', child: Text(strings.text('exampleSound'))),
-                          DropdownMenuItem(value: 'silent', child: Text(strings.text('silent'))),
-                          DropdownMenuItem(value: 'custom', child: Text(strings.text('customSound'))),
+                        value: _soundSlot,
+                        isExpanded: true,
+                        items: const [
+                          DropdownMenuItem(value: 'sound_01', child: Text('Sound 01')),
+                          DropdownMenuItem(value: 'sound_02', child: Text('Sound 02')),
+                          DropdownMenuItem(value: 'sound_03', child: Text('Sound 03')),
                         ],
-                        onChanged: (value) {
+                        onChanged: (value) async {
                           if (value == null) {
                             return;
                           }
                           setState(() {
-                            if (value == 'default') {
-                              _soundPath = null;
-                            } else if (value == 'example') {
-                              _soundPath = 'example';
-                            } else if (value == 'silent') {
-                              _soundPath = 'silent';
-                            } else if (value == 'custom') {
-                              if (_soundPath == null || _soundPath == 'silent') {
-                                _soundPath = '';
-                              }
-                            }
+                            _soundSlot = value;
                           });
+                          await _loadCustomSound();
                         },
                       ),
                     ),
-                    if (_soundDropdownValue() == 'custom')
-                      TextButton.icon(
-                        onPressed: _pickSoundFile,
-                        icon: const Icon(Icons.attach_file),
-                        label: Text(strings.text('pickFile')),
+                    const SizedBox(width: 8),
+                    IconButton(
+                      tooltip: 'Pick custom sound for preview',
+                      onPressed: _pickSoundFile,
+                      icon: const Icon(Icons.folder_open),
+                      style: IconButton.styleFrom(
+                        backgroundColor: Theme.of(context).colorScheme.surfaceVariant,
                       ),
+                    ),
                   ],
                 ),
-                if (_soundDropdownValue() == 'custom')
+                if (_customSoundPath != null && _customSoundPath!.isNotEmpty)
                   Padding(
                     padding: const EdgeInsets.only(top: 6),
-                    child: Text(
-                      _soundPath == null || _soundPath!.isEmpty
-                          ? strings.text('soundFile')
-                          : _soundPath!,
-                      style: Theme.of(context).textTheme.bodySmall,
-                      overflow: TextOverflow.ellipsis,
+                    child: Row(
+                      children: [
+                        Icon(
+                          Icons.info_outline,
+                          size: 14,
+                          color: Theme.of(context).colorScheme.primary,
+                        ),
+                        const SizedBox(width: 4),
+                        Expanded(
+                          child: Text(
+                            'Preview: ${_customSoundPath!.split('/').last}',
+                            style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                                  color: Theme.of(context).colorScheme.primary,
+                                ),
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                      ],
                     ),
                   ),
                 const SizedBox(height: 16),
-                const Icon(Icons.volume_up),
                 Row(
                   children: [
+                    Text(
+                      '${(_volume * 100).round()}%',
+                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                            fontWeight: FontWeight.w500,
+                          ),
+                    ),
                     Expanded(
                       child: Slider(
                         value: _volume,
                         min: 0,
                         max: 1,
+                        divisions: 20,
+                        label: '${(_volume * 100).round()}%',
                         onChanged: (value) => setState(() => _volume = value),
                       ),
                     ),
-                    const SizedBox(width: 8),
                     IconButton(
                       tooltip: strings.text('testSound'),
                       onPressed: _testSound,
@@ -307,19 +341,6 @@ class _TimerEditorSheetState extends State<TimerEditorSheet> {
     );
   }
 
-  String _soundDropdownValue() {
-    if (_soundPath == 'silent') {
-      return 'silent';
-    }
-    if (_soundPath == 'example') {
-      return 'example';
-    }
-    if (_soundPath == null || _soundPath!.isEmpty) {
-      return 'default';
-    }
-    return 'custom';
-  }
-
   void _handleIntervalHint() {
     if (mounted) {
       setState(() {});
@@ -333,7 +354,7 @@ class _TimerEditorSheetState extends State<TimerEditorSheet> {
   }
 
   Future<void> _testSound() async {
-    if (_soundDropdownValue() == 'silent') {
+    if (_volume == 0) {
       return;
     }
     final source = _resolvePreviewSource();
@@ -346,20 +367,12 @@ class _TimerEditorSheetState extends State<TimerEditorSheet> {
   }
 
   Source? _resolvePreviewSource() {
-    final dropdown = _soundDropdownValue();
-    if (dropdown == 'custom') {
-      if (_soundPath == null || _soundPath!.isEmpty) {
-        return null;
-      }
-      return DeviceFileSource(_soundPath!);
+    // If custom sound is set for this slot, use it
+    if (_customSoundPath != null && _customSoundPath!.isNotEmpty) {
+      return DeviceFileSource(_customSoundPath!);
     }
-    if (dropdown == 'example' || dropdown == 'default') {
-      // Both default and example use the example sound for preview
-      // (default will use system sound in actual notifications)
-      return AssetSource('sounds/interval_timer_example.ogg');
-    }
-    // Silent
-    return null;
+    // Otherwise use the default example sound
+    return AssetSource('sounds/interval_timer_example.ogg');
   }
 
   Future<void> _pickSoundFile() async {
@@ -367,15 +380,19 @@ class _TimerEditorSheetState extends State<TimerEditorSheet> {
     if (result == null || result.files.isEmpty) {
       return;
     }
+    final filePath = result.files.single.path;
+    if (filePath == null || filePath.isEmpty) {
+      return;
+    }
+    await _storage.saveCustomSound(_soundSlot, filePath);
     setState(() {
-      _soundPath = result.files.single.path ?? '';
+      _customSoundPath = filePath;
     });
   }
 
   void _save() {
     final interval = int.tryParse(_intervalController.text);
     final resolvedInterval = interval == null || interval <= 0 ? _randomInterval() : interval;
-    final resolvedSound = _soundPath == null || _soundPath!.isEmpty ? null : _soundPath;
     final name = _nameController.text.trim();
     final updated = widget.timer.copyWith(
       name: name.isEmpty ? _fallbackNames[_random.nextInt(_fallbackNames.length)] : name,
@@ -383,7 +400,7 @@ class _TimerEditorSheetState extends State<TimerEditorSheet> {
       durationMinutes: null,
       isEndless: true,
       colorValue: _colorValue,
-      soundPath: resolvedSound,
+      soundPath: _soundSlot,
       volume: _volume,
       vibrationEnabled: _vibrationEnabled,
       quietHours: null,

@@ -12,12 +12,21 @@ import '../models/timer_model.dart';
 class NotificationService {
   final FlutterLocalNotificationsPlugin _plugin = FlutterLocalNotificationsPlugin();
 
-  static const _defaultChannelId = 'interval_timer_reminders_v3';
-  static const _exampleChannelId = 'interval_timer_reminders_example_v3';
-  static const _silentChannelId = 'interval_timer_reminders_silent_v3';
+  // Track scheduled notification counts per timer to avoid unnecessary cancellations
+  final Map<String, int> _scheduledCounts = {};
+
+  static const _defaultChannelId = 'interval_timer_reminders_v6';
+  static const _exampleChannelId = 'interval_timer_reminders_example_v6';
+  static const _silentChannelId = 'interval_timer_reminders_silent_v6';
+  static const _sound01ChannelId = 'interval_timer_sound_01_v6';
+  static const _sound02ChannelId = 'interval_timer_sound_02_v6';
+  static const _sound03ChannelId = 'interval_timer_sound_03_v6';
   static const _channelName = 'Interval Reminders';
   static const _channelDescription = 'Interval timer reminders';
   static const _exampleSoundName = 'interval_timer_example';
+  static const _sound01Name = 'interval_timer_sound_01';
+  static const _sound02Name = 'interval_timer_sound_02';
+  static const _sound03Name = 'interval_timer_sound_03';
   static const _legacyChannels = <String>[
     'interval_timer_reminders',
     'interval_timer_reminders_example',
@@ -25,6 +34,18 @@ class NotificationService {
     'interval_timer_reminders_v2',
     'interval_timer_reminders_example_v2',
     'interval_timer_reminders_silent_v2',
+    'interval_timer_reminders_v3',
+    'interval_timer_reminders_example_v3',
+    'interval_timer_reminders_silent_v3',
+    'interval_timer_sound_01_v4',
+    'interval_timer_sound_02_v4',
+    'interval_timer_sound_03_v4',
+    'interval_timer_reminders_v5',
+    'interval_timer_reminders_example_v5',
+    'interval_timer_reminders_silent_v5',
+    'interval_timer_sound_01_v5',
+    'interval_timer_sound_02_v5',
+    'interval_timer_sound_03_v5',
   ];
 
   Future<void> initialize() async {
@@ -44,6 +65,7 @@ class NotificationService {
       importance: Importance.max,
       playSound: true,
       enableVibration: true,
+      audioAttributesUsage: AudioAttributesUsage.alarm,
     );
     // Example channel uses custom sound
     final exampleChannel = const AndroidNotificationChannel(
@@ -54,6 +76,7 @@ class NotificationService {
       playSound: true,
       enableVibration: true,
       sound: RawResourceAndroidNotificationSound(_exampleSoundName),
+      audioAttributesUsage: AudioAttributesUsage.alarm,
     );
     // Silent channel
     const silentChannel = AndroidNotificationChannel(
@@ -62,6 +85,39 @@ class NotificationService {
       description: 'Silent interval timer reminders',
       importance: Importance.max,
       playSound: false,
+    );
+    // Sound 01 channel
+    const sound01Channel = AndroidNotificationChannel(
+      _sound01ChannelId,
+      'Interval Reminders (Sound 01)',
+      description: 'Interval timer reminders with sound 01',
+      importance: Importance.max,
+      playSound: true,
+      enableVibration: true,
+      sound: RawResourceAndroidNotificationSound(_sound01Name),
+      audioAttributesUsage: AudioAttributesUsage.alarm,
+    );
+    // Sound 02 channel
+    const sound02Channel = AndroidNotificationChannel(
+      _sound02ChannelId,
+      'Interval Reminders (Sound 02)',
+      description: 'Interval timer reminders with sound 02',
+      importance: Importance.max,
+      playSound: true,
+      enableVibration: true,
+      sound: RawResourceAndroidNotificationSound(_sound02Name),
+      audioAttributesUsage: AudioAttributesUsage.alarm,
+    );
+    // Sound 03 channel
+    const sound03Channel = AndroidNotificationChannel(
+      _sound03ChannelId,
+      'Interval Reminders (Sound 03)',
+      description: 'Interval timer reminders with sound 03',
+      importance: Importance.max,
+      playSound: true,
+      enableVibration: true,
+      sound: RawResourceAndroidNotificationSound(_sound03Name),
+      audioAttributesUsage: AudioAttributesUsage.alarm,
     );
     final androidPlugin =
         _plugin.resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>();
@@ -72,6 +128,9 @@ class NotificationService {
       await androidPlugin.createNotificationChannel(defaultChannel);
       await androidPlugin.createNotificationChannel(exampleChannel);
       await androidPlugin.createNotificationChannel(silentChannel);
+      await androidPlugin.createNotificationChannel(sound01Channel);
+      await androidPlugin.createNotificationChannel(sound02Channel);
+      await androidPlugin.createNotificationChannel(sound03Channel);
     }
     await _plugin
         .resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>()
@@ -79,9 +138,12 @@ class NotificationService {
   }
 
   Future<void> cancelTimer(TimerModel timer) async {
-    for (var i = 0; i < _maxScheduledCount; i += 1) {
+    // Only cancel notifications that were actually scheduled
+    final count = _scheduledCounts[timer.id] ?? _maxScheduledCount;
+    for (var i = 0; i < count; i += 1) {
       await _plugin.cancel(_notificationId(timer.id, i));
     }
+    _scheduledCounts.remove(timer.id);
   }
 
   Future<void> scheduleTimer(TimerModel timer, {required bool globalMute}) async {
@@ -97,6 +159,9 @@ class NotificationService {
         : tz.TZDateTime.from(timer.startedAt!, tz.local);
 
     final occurrences = _buildOccurrences(timer, startAt, now);
+    // Track how many notifications we actually schedule
+    _scheduledCounts[timer.id] = occurrences.length;
+
     for (var i = 0; i < occurrences.length; i += 1) {
       final scheduled = occurrences[i];
       final soundSettings = _resolveSoundSettings(timer.soundPath);
@@ -113,7 +178,10 @@ class NotificationService {
           vibrationPattern: timer.vibrationPattern == null
               ? null
               : Int64List.fromList(timer.vibrationPattern!),
-          category: AndroidNotificationCategory.reminder,
+          category: AndroidNotificationCategory.alarm,
+          fullScreenIntent: true,
+          visibility: NotificationVisibility.public,
+          showWhen: true,
         ),
       );
 
@@ -165,10 +233,26 @@ class NotificationService {
   }
 
   _SoundSettings _resolveSoundSettings(String? soundPath) {
-    if (soundPath == 'silent') {
+    // Map sound slots to their dedicated channels with unique sounds
+    if (soundPath == 'sound_01') {
       return const _SoundSettings(
-        channelId: _silentChannelId,
-        playSound: false,
+        channelId: _sound01ChannelId,
+        playSound: true,
+        sound: RawResourceAndroidNotificationSound(_sound01Name),
+      );
+    }
+    if (soundPath == 'sound_02') {
+      return const _SoundSettings(
+        channelId: _sound02ChannelId,
+        playSound: true,
+        sound: RawResourceAndroidNotificationSound(_sound02Name),
+      );
+    }
+    if (soundPath == 'sound_03') {
+      return const _SoundSettings(
+        channelId: _sound03ChannelId,
+        playSound: true,
+        sound: RawResourceAndroidNotificationSound(_sound03Name),
       );
     }
     if (soundPath == 'example') {
@@ -206,6 +290,14 @@ class NotificationService {
       occurrences.add(current);
 
       current = current.add(interval);
+    }
+
+    // Add final notification at end time for non-endless timers
+    if (endAt != null &&
+        !endAt.isBefore(now) &&
+        occurrences.length < _maxScheduledCount &&
+        (occurrences.isEmpty || !occurrences.last.isAtSameMomentAs(endAt))) {
+      occurrences.add(endAt);
     }
 
     return occurrences;

@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:uuid/uuid.dart';
 
@@ -15,6 +17,10 @@ class TimerStore extends ChangeNotifier {
   final TimerStorage _storage;
   final NotificationService _notifications;
   final _uuid = const Uuid();
+
+  // Debounce persistence to avoid excessive disk writes
+  Timer? _persistDebounce;
+  static const _persistDelay = Duration(milliseconds: 500);
 
   final List<TimerModel> _timers = [];
   bool _globalMute = false;
@@ -63,8 +69,13 @@ class TimerStore extends ChangeNotifier {
       return;
     }
     final timer = _timers.removeAt(index);
-    await _notifications.cancelTimer(timer);
-    await _persist();
+    // Persist state (fast - just JSON serialization)
+    await _storage.saveTimers(_timers);
+    // Update UI immediately
+    notifyListeners();
+    // Cancel notifications in background (slow - 96 platform calls)
+    // Don't await - let it run in background without blocking UI
+    _notifications.cancelTimer(timer);
   }
 
   Future<void> toggleTimerActive(String id, bool isActive) async {
@@ -88,15 +99,21 @@ class TimerStore extends ChangeNotifier {
 
   Future<void> toggleGlobalMute() async {
     _globalMute = !_globalMute;
+    // Update UI immediately
+    notifyListeners();
+    // Save preference and update notifications in background
     await _storage.saveGlobalMute(_globalMute);
+    // Process all timers in parallel instead of sequentially
+    final futures = <Future>[];
     for (final timer in _timers.where((item) => item.isActive)) {
       if (_globalMute) {
-        await _notifications.cancelTimer(timer);
+        futures.add(_notifications.cancelTimer(timer));
       } else {
-        await _notifications.scheduleTimer(timer, globalMute: _globalMute);
+        futures.add(_notifications.scheduleTimer(timer, globalMute: _globalMute));
       }
     }
-    notifyListeners();
+    // Wait for all notifications to finish processing
+    await Future.wait(futures);
   }
 
   Future<void> setThemeMode(ThemeMode mode) async {
@@ -119,19 +136,33 @@ class TimerStore extends ChangeNotifier {
       durationMinutes: null,
       isEndless: true,
       colorValue: Colors.cyan.value,
-      soundPath: 'example',
+      soundPath: 'sound_01',
       volume: 1.0,
       vibrationEnabled: true,
       vibrationPattern: null,
       quietHours: null,
-      isActive: false,
-      startedAt: null,
+      isActive: true,
+      startedAt: DateTime.now(),
     );
   }
 
   Future<void> _persist() async {
     await _storage.saveTimers(_timers);
     notifyListeners();
+  }
+
+  // Debounced version - delays disk writes
+  void _persistDebounced() {
+    _persistDebounce?.cancel();
+    _persistDebounce = Timer(_persistDelay, () async {
+      await _storage.saveTimers(_timers);
+    });
+  }
+
+  @override
+  void dispose() {
+    _persistDebounce?.cancel();
+    super.dispose();
   }
 
   Future<void> _refreshActiveTimers() async {
